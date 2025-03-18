@@ -1,17 +1,11 @@
 #!/bin/bash
-
-# Récupérer le répertoire où le script est situé
-script_dir="$(dirname "$(realpath "$0")")"
-
-
-
 read -p "Entrez un nom de fichier de base (par exemple 'capi'): " base_name
 
-dir_path="$script_dir"
+dir_path=$(pwd)
 
 # Créer les fichiers de sortie pour Fatal et Warning
 fatal_file="${base_name}.fatal.error.log"
-Warning="${base_name}.Warning.error.log"
+Warning="${base_name}.warning.error.log"
 
 # Vider les fichiers si déjà existants
 > "$fatal_file"
@@ -20,12 +14,18 @@ Warning="${base_name}.Warning.error.log"
 
 # Parcourir les fichiers error.log dans le répertoire du script
 for log_file in "$dir_path"/*error.log*; do
+  # -f : fichier régulier || existence du fichier
   if [ -f "$log_file" ]; then
     echo "Traitement de $log_file..."
 
+    # -i : insensible à la casse
     grep -i "Fatal" "$log_file" >> "$fatal_file"
 
-    grep -i "Warning" "$log_file" >> "$Warning"
+    # -E : expression régulière étendue
+    # -u : ignorer les doublons
+    grep -i "Warning" "$log_file" | \
+      sed -E 's/\[[^]]*\] \[proxy_fcgi:error\] \[pid [0-9]*:tid [0-9]*\] \[(client|remote) [^]]*\] AH01071: Got error //' | \
+      sort -u >> "$Warning"
 
   fi
 done
@@ -35,4 +35,4 @@ echo "Les lignes 'Fatal' ont été enregistrées dans $fatal_file."
 echo "Les lignes 'Warning' ont été enregistrées dans $Warning."
 
 # Supprimer le script après son exécution
-rm -- "$0"
+rm -- "$dir_path/extract_errors.sh"
